@@ -1,0 +1,105 @@
+# FileStorage
+
+A clean, responsive file upload web app that lets users upload documents and get a unique public URL for sharing.
+
+This project is designed to be deployed on GitHub Pages as a static frontend, while using Supabase Storage as the free backend/storage service for uploaded files.
+
+## Why this approach?
+
+GitHub Pages can host static frontends, but it cannot directly accept uploaded files and persist them securely. For a real file-sharing app, the frontend needs an external storage provider.
+
+Using Supabase Storage is a simple free option that works well with GitHub Pages.
+
+## Features
+
+- Upload PDFs, Word documents, images, spreadsheets, and more
+- Generate a unique public URL for each uploaded file
+- Copy-to-clipboard share links
+- Recent upload history in the browser
+- Responsive design for desktop and mobile
+- Easy deployment to GitHub Pages
+
+## Project structure
+
+```text
+fileStorage/
+├── index.html
+├── style.css
+├── app.js
+├── README.md
+└── .gitignore
+```
+
+## Setup
+
+### 1. Create a Supabase project
+
+1. Go to https://supabase.com
+2. Sign in and create a new project
+3. In your Supabase dashboard, create a public storage bucket
+4. Name the bucket something like `files`
+5. Add the bucket to your project and allow public read access for the files you upload
+
+### 2. Update app configuration
+
+Open `app.js` and replace the placeholder values:
+
+```javascript
+const appConfig = {
+  supabaseUrl: "https://your-project.supabase.co",
+  supabaseAnonKey: "your-anon-key",
+  bucketName: "files",
+};
+```
+
+You can find these in:
+- Supabase Dashboard → Project Settings → API
+
+### 3. Add storage policy
+
+Make the bucket public or create a rule that allows uploads from the browser using the anonymous key.
+
+Example policy idea:
+
+```sql
+create policy "Public Access"
+on storage.objects for select
+using (true);
+
+create policy "Allow upload for anon"
+on storage.objects for insert
+with check (true);
+```
+
+## Deployment to GitHub Pages
+
+1. Push these files to your GitHub repository
+2. Open the repository settings
+3. Go to Pages
+4. Choose the branch and root folder
+5. Save and wait for deployment
+
+Your site will be available at:
+
+```text
+https://<your-username>.github.io/<repo-name>/
+```
+
+## Demo usage
+
+- Open the deployed site
+- Choose a file
+- Click `Upload file`
+- Copy the generated link and share it
+
+## Important note
+
+GitHub Pages is static hosting only. It cannot directly store file uploads by itself. This app relies on Supabase Storage for the actual file persistence.
+
+## Optional upgrade path
+
+If you want a pure GitHub-based solution later, you can build a Node/Express backend that stores files in a GitHub repository using a PAT, but it is more complex and less ideal for production than Supabase or Firebase.
+
+## License
+
+MIT

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FileStorage</title>
+    <meta
+      name="description"
+      content="Upload files and generate shareable public URLs with FileStorage."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark">F</div>
+          <div>
+            <p class="eyebrow">Cloud file sharing</p>
+            <h1>FileStorage</h1>
+          </div>
+        </div>
+        <a class="ghost-button" href="#uploads">Recent uploads</a>
+      </header>
+
+      <main class="app-card">
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="pill">Secure file hosting</p>
+            <h2>Upload a document. Share a unique URL instantly.</h2>
+            <p class="subtext">
+              Great for PDFs, Word docs, spreadsheets, images, and any other files
+              that need a quick public link.
+            </p>
+          </div>
+        </section>
+
+        <section class="upload-panel" aria-label="Upload file form">
+          <form id="upload-form" class="upload-form">
+            <label class="field-label" for="file-input">Choose a file</label>
+            <div class="file-picker-row">
+              <input id="file-input" type="file" name="file" required />
+            </div>
+
+            <label class="field-label" for="custom-name">Custom file label</label>
+            <input
+              id="custom-name"
+              type="text"
+              name="customName"
+              placeholder="Optional: Project brief.pdf"
+            />
+
+            <button id="upload-button" type="submit" class="primary-button">
+              Upload file
+            </button>
+          </form>
+
+          <div id="status" class="status-box" aria-live="polite">
+            Configure Supabase in app.js to enable uploads.
+          </div>
+        </section>
+
+        <section id="uploads" class="uploads-panel" aria-live="polite">
+          <div class="section-head">
+            <h3>Recent uploads</h3>
+            <button id="clear-history" type="button" class="text-button">
+              Clear history
+            </button>
+          </div>
+          <div id="upload-list" class="upload-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

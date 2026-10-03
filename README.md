@@ -1,124 +1,178 @@
-# FileStorage - Document Management Web App
+const STORAGE_KEY = "fileStorageUploads";
 
-A modern, user-friendly web application for uploading, storing, and accessing files (PDFs, Word docs, etc.) with unique shareable URLs.
+const appConfig = {
+  supabaseUrl: "https://your-project.supabase.co",
+  supabaseAnonKey: "your-anon-key",
+  bucketName: "files",
+};
 
-## Features
+const { createClient } = window.supabase;
+const supabase = createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey);
 
-✅ **Drag & Drop Upload** - Easy file upload with drag-and-drop interface
-✅ **Multiple File Types** - Support for PDFs, Word docs (.docx, .doc), Excel sheets, images, and more
-✅ **Unique URLs** - Each uploaded file gets a unique shareable URL
-✅ **File Management** - View, download, and delete your uploaded files
-✅ **Responsive Design** - Works on desktop, tablet, and mobile devices
-✅ **GitHub Storage** - Files stored using GitHub's free storage infrastructure
-✅ **Fast Access** - CDN-backed file delivery via GitHub Raw Content
+const form = document.getElementById("upload-form");
+const fileInput = document.getElementById("file-input");
+const customNameInput = document.getElementById("custom-name");
+const statusBox = document.getElementById("status");
+const uploadList = document.getElementById("upload-list");
+const clearHistoryButton = document.getElementById("clear-history");
 
-## Tech Stack
+function setStatus(message, type = "") {
+  statusBox.textContent = message;
+  statusBox.classList.remove("success", "error");
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Backend**: Node.js + Express.js
-- **Storage**: GitHub Repository (via GitHub API)
-- **Deployment**: GitHub Pages (Frontend) + Vercel/Heroku (Backend)
-- **Authentication**: GitHub Personal Access Token
+  if (type) {
+    statusBox.classList.add(type);
+  }
+}
 
-## Project Structure
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
 
-```
-fileStorage/
-├── index.html           # Main web app (Frontend)
-├── css/
-│   └── style.css       # Styles
-├── js/
-│   └── app.js          # Frontend logic
-├── server/
-│   ├── server.js       # Express backend
-│   ├── package.json    # Dependencies
-│   └── .env.example    # Environment variables template
-└── docs/
-    └── API.md          # API Documentation
-```
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
 
-## Setup Instructions
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
 
-### 1. Backend Setup (Local/Deployment)
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
 
-```bash
-cd server
-npm install
-```
+function isConfigured() {
+  return (
+    appConfig.supabaseUrl !== "https://your-project.supabase.co" &&
+    appConfig.supabaseAnonKey !== "your-anon-key" &&
+    appConfig.bucketName.trim().length > 0
+  );
+}
 
-Create `.env` file:
-```
-GITHUB_TOKEN=your_github_personal_access_token
-GITHUB_REPO_OWNER=mohithbunny
-GITHUB_REPO_NAME=fileStorage-data
-GITHUB_BRANCH=main
-PORT=3000
-```
+function readHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
-### 2. Get GitHub Personal Access Token
+function writeHistory(items) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
 
-1. Go to https://github.com/settings/tokens
-2. Click "Generate new token"
-3. Select scopes: `repo` (full control of private repositories)
-4. Copy the token and add to `.env`
+function renderHistory() {
+  const items = readHistory();
 
-### 3. Create Storage Repository
+  if (!items.length) {
+    uploadList.innerHTML = '<div class="empty-state">No files uploaded yet.</div>';
+    return;
+  }
 
-Create a new private repository named `fileStorage-data` for storing uploaded files.
+  uploadList.innerHTML = items
+    .slice()
+    .reverse()
+    .map(
+      (item) => `
+        <div class="upload-item">
+          <div class="upload-meta">
+            <span class="upload-name">${item.name}</span>
+            <span class="upload-size">${item.size} • ${item.uploadedAt}</span>
+          </div>
+          <button class="copy-button" data-copy="${item.url}" type="button">Copy link</button>
+          <a class="open-button" href="${item.url}" target="_blank" rel="noreferrer">Open</a>
+        </div>
+      `
+    )
+    .join("");
 
-### 4. Deploy Backend
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const url = button.getAttribute("data-copy");
+      await navigator.clipboard.writeText(url);
+      button.textContent = "Copied";
+      setTimeout(() => {
+        button.textContent = "Copy link";
+      }, 1200);
+    });
+  });
+}
 
-- **Option A**: Deploy to Vercel
-  ```bash
-  npm install -g vercel
-  vercel
-  ```
+async function uploadFile(file) {
+  const fileName = customNameInput.value.trim() || file.name;
+  const uniqueFileName = `${crypto.randomUUID()}-${fileName.replace(/\s+/g, "-")}`;
 
-- **Option B**: Deploy to Heroku
-  ```bash
-  heroku create
-  git push heroku main
-  ```
+  const { data, error } = await supabase.storage.from(appConfig.bucketName).upload(uniqueFileName, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type || "application/octet-stream",
+  });
 
-### 5. Deploy Frontend to GitHub Pages
+  if (error) {
+    throw new Error(error.message);
+  }
 
-1. Update the API endpoint in `js/app.js` with your backend URL
-2. Push to GitHub - the `gh-pages` branch will be auto-deployed
+  const { data: publicData } = supabase.storage.from(appConfig.bucketName).getPublicUrl(data.path);
+  const publicUrl = publicData.publicUrl;
 
-## How It Works
+  const history = readHistory();
+  const item = {
+    name: fileName,
+    size: formatBytes(file.size),
+    url: publicUrl,
+    uploadedAt: new Date().toLocaleString(),
+  };
 
-1. User selects/drags file to upload
-2. Frontend sends file to backend API
-3. Backend converts file to Base64 and commits to GitHub storage repo
-4. GitHub generates a unique commit SHA
-5. File is accessible via: `https://raw.githubusercontent.com/mohithbunny/fileStorage-data/main/{file-name}`
-6. User gets a shareable unique URL
+  history.push(item);
+  writeHistory(history);
+  renderHistory();
 
-## API Endpoints
+  return publicUrl;
+}
 
-```
-POST   /api/upload      - Upload a file
-GET    /api/files       - List all uploaded files
-GET    /api/file/:id    - Get file metadata
-DELETE /api/file/:id    - Delete a file
-```
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
 
-## Security Notes
+  if (!isConfigured()) {
+    setStatus(
+      "Add your Supabase URL, anon key, and bucket name in app.js before uploading files.",
+      "error"
+    );
+    return;
+  }
 
-- Keep your GitHub token secure (use environment variables)
-- Store token on backend only, never expose in frontend
-- Consider rate limiting for public deployments
-- Validate file types and sizes
+  const selectedFile = fileInput.files[0];
 
-## Free Storage Limits
+  if (!selectedFile) {
+    setStatus("Please choose a file before uploading.", "error");
+    return;
+  }
 
-- GitHub: 100GB per repository
-- GitHub API: 60 requests/hour (unauthenticated), 5,000/hour (authenticated)
+  const uploadButton = document.getElementById("upload-button");
+  uploadButton.disabled = true;
+  uploadButton.textContent = "Uploading...";
+  setStatus("Uploading your file...");
 
-## License
+  try {
+    const uploadedUrl = await uploadFile(selectedFile);
+    setStatus(`Upload complete. Share this link: ${uploadedUrl}`, "success");
+    form.reset();
+    customNameInput.value = "";
+  } catch (error) {
+    setStatus(`Upload failed: ${error.message}`, "error");
+  } finally {
+    uploadButton.disabled = false;
+    uploadButton.textContent = "Upload file";
+  }
+});
 
-MIT
+clearHistoryButton.addEventListener("click", () => {
+  localStorage.removeItem(STORAGE_KEY);
+  renderHistory();
+});
 
-## Support
+renderHistory();
 
-For issues or questions, open an issue on this repository.
+if (!isConfigured()) {
+  setStatus("Configure Supabase in app.js before using the uploader.");
+}
